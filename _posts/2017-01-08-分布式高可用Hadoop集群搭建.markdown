@@ -114,122 +114,129 @@ export JAVA_HOME=/usr/java/jdk1.8.0_151
 # vi $HADOOP_PREFIX/etc/hadoop/yarn-env.sh 修改JAVA_HOME变量
 export JAVA_HOME=/usr/java/jdk1.8.0_151
 ```
+* 修改core-site.xml文件
+```xml
+	<configuration>
+	  <!--The name of the default file system-->
+	  <property>
+		<name>fs.defaultFS</name>
+		<value>hdfs://mycluster</value>
+	  </property>
 
-* 修改core-site.xml文件  
-```bash
-<configuration>
-  <!--The name of the default file system-->
-  <property>
-    <name>fs.defaultFS</name>
-    <value>hdfs://mycluster</value>
-  </property>
-  <!--A base for other temporary directories-->
-  <property>
-    <name>hadoop.tmp.dir</name>
-    <value>/var/hadoop/ha</value>
-  </property>
-  <!--zookeeper集群位置-->
-  <property>
-    <name>ha.zookeeper.quorum</name>
-    <value>hadoop2:2181,hadoop3:2181,hadoop4:2181</value>
-  </property>
-</configuration>
+	  <!--A base for other temporary directories-->
+	  <property>
+		<name>hadoop.tmp.dir</name>
+		<value>/var/hadoop/ha</value>
+	  </property>
+
+	  <!--zookeeper集群位置-->
+	  <property>
+		<name>ha.zookeeper.quorum</name>
+		<value>hadoop2:2181,hadoop3:2181,hadoop4:2181</value>
+	  </property>
+
+	</configuration>
 ```
 * 修改hdfs-site.xml文件
 ```xml
-configuration>
-  <!--默认副本个数-->
-  <property>
-    <name>dfs.replication</name>
-    <value>2</value>
-  </property>
-  <!--集群名称-->
-  <property>
-    <name>dfs.nameservices</name>
-    <value>mycluster</value>
-  </property>
-  <!--NameNode节点-->
-  <property>
-    <name>dfs.ha.namenodes.mycluster</name>
-    <value>nn1,nn2</value>
-  </property>
-  <!--RPC地址-->
-  <property>
-    <name>dfs.namenode.rpc-address.mycluster.nn1</name>
-    <value>hadoop1:8020</value>
-  </property>
-  <property>
-    <name>dfs.namenode.rpc-address.mycluster.nn2</name>
-    <value>hadoop2:8020</value>
-  </property>
-  <!--web ui的地址-->
-  <property>
-    <name>dfs.namenode.http-address.mycluster.nn1</name>
-    <value>hadoop1:50070</value>
-  </property>
-  <property>
-    <name>dfs.namenode.http-address.mycluster.nn2</name>
-    <value>hadoop2:50070</value>
-  </property>
-  <!--用于namenodes间同步的edits文件所在位置-->
-  <property>
-    <name>dfs.namenode.shared.edits.dir</name>
-    <value>qjournal://hadoop1:8485;hadoop2:8485;hadoop3:8485/mycluster</value>
-  </property>
-  <property>
-    <name>dfs.journalnode.edits.dir</name>
-    <value>/var/hadoop/ha/jn</value>
-  </property>
-  <property>
-    <name>dfs.client.failover.proxy.provider.mycluster</name>
-    <value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider</value>
-  </property>
-  <property>
-    <name>dfs.ha.fencing.methods</name>
-    <value>sshfence</value>
-  </property>
-  <property>
-    <name>dfs.ha.fencing.ssh.private-key-files</name>
-    <value>/root/.ssh/id_rsa</value>
-  </property>
-  <property>
-    <name>dfs.ha.automatic-failover.enabled</name>
-    <value>true</value>
-  </property>
-</configuration>
+	configuration>
+	  <!--默认副本个数-->
+	  <property>
+		<name>dfs.replication</name>
+		<value>2</value>
+	  </property>
+	  <!--集群名称-->
+	  <property>
+		<name>dfs.nameservices</name>
+		<value>mycluster</value>
+	  </property>
+	  <!--NameNode节点-->
+	  <property>
+		<name>dfs.ha.namenodes.mycluster</name>
+		<value>nn1,nn2</value>
+	  </property>
+	  <!--RPC地址-->
+	  <property>
+		<name>dfs.namenode.rpc-address.mycluster.nn1</name>
+		<value>hadoop1:8020</value>
+	  </property>
+	  <property>
+		<name>dfs.namenode.rpc-address.mycluster.nn2</name>
+		<value>hadoop2:8020</value>
+	  </property>
+	  <!--web ui的地址-->
+	  <property>
+		<name>dfs.namenode.http-address.mycluster.nn1</name>
+		<value>hadoop1:50070</value>
+	  </property>
+	  <property>
+		<name>dfs.namenode.http-address.mycluster.nn2</name>
+		<value>hadoop2:50070</value>
+	  </property>
+
+	  <!--用于namenodes间同步的edits文件所在位置-->
+	  <property>
+		<name>dfs.namenode.shared.edits.dir</name>
+		<value>qjournal://hadoop1:8485;hadoop2:8485;hadoop3:8485/mycluster</value>
+	  </property>
+	  <property>
+		<name>dfs.journalnode.edits.dir</name>
+		<value>/var/hadoop/ha/jn</value>
+	  </property>
+
+	  <property>
+		<name>dfs.client.failover.proxy.provider.mycluster</name>
+		<value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider</value>
+	  </property>
+
+	  <property>
+		<name>dfs.ha.fencing.methods</name>
+		<value>sshfence</value>
+	  </property>
+
+	  <property>
+		<name>dfs.ha.fencing.ssh.private-key-files</name>
+		<value>/root/.ssh/id_rsa</value>
+	  </property>
+
+	  <property>
+		<name>dfs.ha.automatic-failover.enabled</name>
+		<value>true</value>
+	  </property>
+	</configuration>
 ```
 * 修改yarn-site.xml
 ```xml
-<configuration>
-  <property>
-    <name>yarn.nodemanager.aux-services</name>
-    <value>mapreduce_shuffle</value>
-  </property>
-  <property>
-    <name>yarn.resourcemanager.ha.enabled</name>
-    <value>true</value>
-  </property>
-  <property>
-    <name>yarn.resourcemanager.cluster-id</name>
-    <value>cluster1</value>
-  </property>
-  <property>
-    <name>yarn.resourcemanager.ha.rm-ids</name>
-    <value>rm1,rm2</value>
-  </property>
-  <property>
-    <name>yarn.resourcemanager.hostname.rm1</name>
-    <value>hadoop3</value>
-  </property>
-  <property>
-    <name>yarn.resourcemanager.hostname.rm2</name>
-    <value>hadoop4</value>
-  </property>
-  <property>
-    <name>yarn.resourcemanager.zk-address</name>
-    <value>hadoop2:2181,hadoop3:2181,hadoop4:2181</value>
-  </property>
-</configuration>
+	<configuration>
+	  <property>
+		<name>yarn.nodemanager.aux-services</name>
+		<value>mapreduce_shuffle</value>
+	  </property>
+	  <property>
+		<name>yarn.resourcemanager.ha.enabled</name>
+		<value>true</value>
+	  </property>
+	  <property>
+		<name>yarn.resourcemanager.cluster-id</name>
+		<value>cluster1</value>
+	  </property>
+	  <property>
+		<name>yarn.resourcemanager.ha.rm-ids</name>
+		<value>rm1,rm2</value>
+	  </property>
+	  <property>
+		<name>yarn.resourcemanager.hostname.rm1</name>
+		<value>hadoop3</value>
+	  </property>
+	  <property>
+		<name>yarn.resourcemanager.hostname.rm2</name>
+		<value>hadoop4</value>
+	  </property>
+	  <property>
+		<name>yarn.resourcemanager.zk-address</name>
+		<value>hadoop2:2181,hadoop3:2181,hadoop4:2181</value>
+	  </property>
+	</configuration>
 ```
 
 ### 四. 安装配置Zookeeper（hadoop1节点不需要配置）
@@ -268,3 +275,5 @@ start-yarn.sh
 ssh hadoop3 'source /etc/profile;yarn-daemon.sh start resourcemanager'
 ssh hadoop4 'source /etc/profile;yarn-daemon.sh start resourcemanager'
 ```
+
+
