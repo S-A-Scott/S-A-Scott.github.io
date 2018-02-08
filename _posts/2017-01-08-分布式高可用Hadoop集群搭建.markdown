@@ -68,7 +68,6 @@ GATEWAY=10.211.55.1
 ```bash  
 systemctl stop firewalld
 systemctl mask firewalld
-
 vi /etc/selinux/config
 SELINUX=disabled
 ```
