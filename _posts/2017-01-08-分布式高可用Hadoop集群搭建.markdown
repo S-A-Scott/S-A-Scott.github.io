@@ -101,7 +101,6 @@ ssh-copy-id 10.211.55.12
 # 解压缩
 tar zxvf hadoop-2.6.5.tar.gz -C /usr/local
 # 配置环境变量：vi /etc/profile 在文件末尾追加
-
 export JAVA_HOME=/usr/java/jdk1.8.0_151
 export HADOOP_PREFIX=/usr/local/hadoop-2.6.5
 export PATH=$PATH:$HADOOP_PREFIX/bin:$HADOOP_PREFIX/sbin
@@ -110,10 +109,8 @@ export PATH=$PATH:$HADOOP_PREFIX/bin:$HADOOP_PREFIX/sbin
 ```bash
 # vi $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh 修改JAVA_HOME变量
 export JAVA_HOME=/usr/java/jdk1.8.0_151
-
 # vi $HADOOP_PREFIX/etc/hadoop/mapred-env.sh 修改JAVA_HOME变量
 export JAVA_HOME=/usr/java/jdk1.8.0_151
-
 # vi $HADOOP_PREFIX/etc/hadoop/yarn-env.sh 修改JAVA_HOME变量
 export JAVA_HOME=/usr/java/jdk1.8.0_151
 ```
@@ -126,19 +123,16 @@ export JAVA_HOME=/usr/java/jdk1.8.0_151
     <name>fs.defaultFS</name>
     <value>hdfs://mycluster</value>
   </property>
-  
   <!--A base for other temporary directories-->
   <property>
     <name>hadoop.tmp.dir</name>
     <value>/var/hadoop/ha</value>
   </property>
-
   <!--zookeeper集群位置-->
   <property>
     <name>ha.zookeeper.quorum</name>
     <value>hadoop2:2181,hadoop3:2181,hadoop4:2181</value>
   </property>
-
 </configuration>
 ```
 * 修改hdfs-site.xml文件
@@ -177,7 +171,6 @@ configuration>
     <name>dfs.namenode.http-address.mycluster.nn2</name>
     <value>hadoop2:50070</value>
   </property>
-
   <!--用于namenodes间同步的edits文件所在位置-->
   <property>
     <name>dfs.namenode.shared.edits.dir</name>
@@ -187,22 +180,18 @@ configuration>
     <name>dfs.journalnode.edits.dir</name>
     <value>/var/hadoop/ha/jn</value>
   </property>
-  
   <property>
     <name>dfs.client.failover.proxy.provider.mycluster</name>
     <value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider</value>
   </property>
-
   <property>
     <name>dfs.ha.fencing.methods</name>
     <value>sshfence</value>
   </property>
-
   <property>
     <name>dfs.ha.fencing.ssh.private-key-files</name>
     <value>/root/.ssh/id_rsa</value>
   </property>
-
   <property>
     <name>dfs.ha.automatic-failover.enabled</name>
     <value>true</value>
@@ -252,7 +241,6 @@ tar zxvf zookeeper-3.4.6.tar.gz
 * 修改zoo.cfg `vi /usr/local/zookeeper-3.4.6/conf/zoo_sample.cfg`
 ```shell
 修改dataDir=/var/zk变量然后在末尾追加
-
 server.1=hadoop2:2888:3888
 server.2=hadoop3:2888:3888
 server.3=hadoop4:2888:3888
@@ -268,17 +256,14 @@ server.3=hadoop4:2888:3888
 * 为了方便管理，写了个简单的脚本
 ```bash
 #!/bin/bash
-
 # Start Zookeeper First
 ssh hadoop2 'source /etc/profile;zkServer.sh start'
 ssh hadoop3 'source /etc/profile;zkServer.sh start'
 ssh hadoop4 'source /etc/profile;zkServer.sh start'
-
 # Start HDFS (executed in current host)
 start-dfs.sh
 # Start Node Manager  (executed in current host)
 start-yarn.sh
-
 # Start Resource Manager
 ssh hadoop3 'source /etc/profile;yarn-daemon.sh start resourcemanager'
 ssh hadoop4 'source /etc/profile;yarn-daemon.sh start resourcemanager'
