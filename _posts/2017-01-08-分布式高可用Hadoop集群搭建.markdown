@@ -1,7 +1,7 @@
 ---
 layout:     post
 title:      "分布式高可用Hadoop集群搭建"
-subtitle:   "On the way"
+subtitle:   "Install and Set Up a 4-Node Hadoop Cluster"
 date:       2017-01-08 12:00:00
 author:     "Spencer"
 header-img: "img/post-bg-2015.jpg"
