@@ -65,7 +65,7 @@ GATEWAY=10.211.55.1
 10.211.55.12  hadoop4
 ```
 4. 关闭防火墙和Selinux   
-```bash
+```bash  
 systemctl stop firewalld
 systemctl mask firewalld
 
