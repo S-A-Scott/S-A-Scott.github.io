@@ -1,0 +1,286 @@
+---
+layout:     post
+title:      "分布式高可用Hadoop集群搭建"
+subtitle:   "On the way"
+date:       2017-01-08 12:00:00
+author:     "Spencer"
+header-img: "img/post-bg-2015.jpg"
+tags:
+    - Hadoop
+---
+
+### 一. 版本说明及集群规划
+1. 版本
+* 虚拟机版本：Parallels Desktop 13
+* ssh远程登录：iTerm
+* 操作系统：CentOS 7
+* JDK 版本：jdk8u-151
+* Hadoop版本：2.6.5
+* Zookeeper版本：3.4.6
+
+2. 集群规划
+
+| IP地址       | 主机名  |
+| ------------ | ------- |
+| 10.211.55.7  | hadoop1 |
+| 10.211.55.9  | hadoop2 |
+| 10.211.55.11 | hadoop3 |
+| 10.211.55.12 | hadoop4 |
+
+NN: NameNode, DN: DataNode, RM: ResourceManager
+
+|          | NN  | DN  | RM  | NodeManager | JournalNode | ZooKeeper | ZKFC |
+| -------- | :-: | :-: | :-: | :---------: | :---------: | :-------: | :--: | 
+| hadoop1  |  *  |     |     |             |      *      |           |   *  |
+| hadoop2  |  *  |  *  |     |      *      |      *      |     *     |   *  |
+| hadoop3  |     |  *  |  *  |      *      |      *      |     *     |      |
+| hadoop4  |     |  *  |  *  |      *      |             |     *     |      |
+
+### 二. 环境准备
+* 网络配置
+1. 安装基本网络命令
+```bash
+ yum install net-tools -y
+```
+2. 修改网络参数：`vi /etc/sysconfig/network-scripts/ifcfg-eth0`
+```bash
+DEVICE="eth0"
+# 不同的虚拟机IPADDR不同
+IPADDR=10.211.55.7
+# 设置为静态IP
+BOOTPROTO="static"
+UUID="df1e2a80-38d5-45c8-b656-ff4b5dc52973"
+ONBOOT="yes"
+DNS1=10.211.55.1
+NETMASK=255.255.255.0
+# 网关地址可以从Parellels Desktop 配置中看到
+GATEWAY=10.211.55.1
+```
+3. 修改主机名和Hosts文件：`hostname hadoop1 && vi /etc/hosts`
+```bash
+127.0.0.1 localhost.hadoop1
+10.211.55.7   hadoop1
+10.211.55.9   hadoop2
+10.211.55.11  hadoop3
+10.211.55.12  hadoop4
+```
+4. 关闭防火墙和Selinux
+```bash
+systemctl stop firewalld
+systemctl mask firewalld
+
+vi /etc/selinux/config
+SELINUX=disabled
+```
+* 安装jdk
+```bash
+# 高版本JDK不需要手动配置环境变量
+rpm -ivh jdk-8u151-linux-x64.rpm
+```
+* 设置NTP时间同步
+```bash
+# 安装
+yum install ntp -y
+# 设置开机启动
+systemctl enable ntpd
+# 设置同步
+ntpdate -u cn.pool.ntp.org
+```
+* SSH免秘钥登录
+```bash
+# 为了方便使用，最好四台机器相互免秘钥
+ssh-keygen -t rsa
+ssh-copy-id 10.211.55.7
+ssh-copy-id 10.211.55.9
+ssh-copy-id 10.211.55.11
+ssh-copy-id 10.211.55.12
+```
+
+### 三. 安装配置Hadoop（所有节点都需要配置）
+* 解压并配置环境变量
+```bash
+# 解压缩
+tar zxvf hadoop-2.6.5.tar.gz -C /usr/local
+# 配置环境变量：vi /etc/profile 在文件末尾追加
+
+export JAVA_HOME=/usr/java/jdk1.8.0_151
+export HADOOP_PREFIX=/usr/local/hadoop-2.6.5
+export PATH=$PATH:$HADOOP_PREFIX/bin:$HADOOP_PREFIX/sbin
+```
+* 修改`Hadoop-specific environment`(官方说明：The only required environment variable is JAVA_HOME)
+```bash
+# vi $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh 修改JAVA_HOME变量
+export JAVA_HOME=/usr/java/jdk1.8.0_151
+
+# vi $HADOOP_PREFIX/etc/hadoop/mapred-env.sh 修改JAVA_HOME变量
+export JAVA_HOME=/usr/java/jdk1.8.0_151
+
+# vi $HADOOP_PREFIX/etc/hadoop/yarn-env.sh 修改JAVA_HOME变量
+export JAVA_HOME=/usr/java/jdk1.8.0_151
+```
+
+* 修改core-site.xml文件
+```xml
+<configuration>
+  <!--The name of the default file system-->
+  <property>
+    <name>fs.defaultFS</name>
+    <value>hdfs://mycluster</value>
+  </property>
+  
+  <!--A base for other temporary directories-->
+  <property>
+    <name>hadoop.tmp.dir</name>
+    <value>/var/hadoop/ha</value>
+  </property>
+
+  <!--zookeeper集群位置-->
+  <property>
+    <name>ha.zookeeper.quorum</name>
+    <value>hadoop2:2181,hadoop3:2181,hadoop4:2181</value>
+  </property>
+
+</configuration>
+```
+* 修改hdfs-site.xml文件
+```xml
+configuration>
+  <!--默认副本个数-->
+  <property>
+    <name>dfs.replication</name>
+    <value>2</value>
+  </property>
+  <!--集群名称-->
+  <property>
+    <name>dfs.nameservices</name>
+    <value>mycluster</value>
+  </property>
+  <!--NameNode节点-->
+  <property>
+    <name>dfs.ha.namenodes.mycluster</name>
+    <value>nn1,nn2</value>
+  </property>
+  <!--RPC地址-->
+  <property>
+    <name>dfs.namenode.rpc-address.mycluster.nn1</name>
+    <value>hadoop1:8020</value>
+  </property>
+  <property>
+    <name>dfs.namenode.rpc-address.mycluster.nn2</name>
+    <value>hadoop2:8020</value>
+  </property>
+  <!--web ui的地址-->
+  <property>
+    <name>dfs.namenode.http-address.mycluster.nn1</name>
+    <value>hadoop1:50070</value>
+  </property>
+  <property>
+    <name>dfs.namenode.http-address.mycluster.nn2</name>
+    <value>hadoop2:50070</value>
+  </property>
+
+  <!--用于namenodes间同步的edits文件所在位置-->
+  <property>
+    <name>dfs.namenode.shared.edits.dir</name>
+    <value>qjournal://hadoop1:8485;hadoop2:8485;hadoop3:8485/mycluster</value>
+  </property>
+  <property>
+    <name>dfs.journalnode.edits.dir</name>
+    <value>/var/hadoop/ha/jn</value>
+  </property>
+  
+  <property>
+    <name>dfs.client.failover.proxy.provider.mycluster</name>
+    <value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider</value>
+  </property>
+
+  <property>
+    <name>dfs.ha.fencing.methods</name>
+    <value>sshfence</value>
+  </property>
+
+  <property>
+    <name>dfs.ha.fencing.ssh.private-key-files</name>
+    <value>/root/.ssh/id_rsa</value>
+  </property>
+
+  <property>
+    <name>dfs.ha.automatic-failover.enabled</name>
+    <value>true</value>
+  </property>
+</configuration>
+```
+* 修改yarn-site.xml
+```xml
+<configuration>
+  <property>
+    <name>yarn.nodemanager.aux-services</name>
+    <value>mapreduce_shuffle</value>
+  </property>
+  <property>
+    <name>yarn.resourcemanager.ha.enabled</name>
+    <value>true</value>
+  </property>
+  <property>
+    <name>yarn.resourcemanager.cluster-id</name>
+    <value>cluster1</value>
+  </property>
+  <property>
+    <name>yarn.resourcemanager.ha.rm-ids</name>
+    <value>rm1,rm2</value>
+  </property>
+  <property>
+    <name>yarn.resourcemanager.hostname.rm1</name>
+    <value>hadoop3</value>
+  </property>
+  <property>
+    <name>yarn.resourcemanager.hostname.rm2</name>
+    <value>hadoop4</value>
+  </property>
+  <property>
+    <name>yarn.resourcemanager.zk-address</name>
+    <value>hadoop2:2181,hadoop3:2181,hadoop4:2181</value>
+  </property>
+</configuration>
+```
+
+### 四. 安装配置Zookeeper（hadoop1节点不需要配置）
+* 安装Zookeeper
+```bash
+tar zxvf zookeeper-3.4.6.tar.gz
+```
+* 创建zoo.cfg文件 `cp /usr/local/zookeeper-3.4.6/conf/zoo_sample.cfg /usr/local/zookeeper-3.4.6/conf/zoo.cfg`
+* 修改zoo.cfg `vi /usr/local/zookeeper-3.4.6/conf/zoo_sample.cfg`
+```shell
+修改dataDir=/var/zk变量然后在末尾追加
+
+server.1=hadoop2:2888:3888
+server.2=hadoop3:2888:3888
+server.3=hadoop4:2888:3888
+```
+* 分别在三台Zookeeper节点的dataDir中新建myid文件, 写入一个数字, 该数字表示这是第几号server. 该数字必须和zoo.cfg文件中的server.X中的X一一对应。
+```shell
+[root@hadoop2]# mkdir -p /var/zk && echo 1 > /var/zk/myid
+[root@hadoop3]# mkdir -p /var/zk && echo 2 > /var/zk/myid
+[root@hadoop4]# mkdir -p /var/zk && echo 3 > /var/zk/myid
+```
+
+### 五. 启动集群
+* 为了方便管理，写了个简单的脚本
+```bash
+#!/bin/bash
+
+# Start Zookeeper First
+ssh hadoop2 'source /etc/profile;zkServer.sh start'
+ssh hadoop3 'source /etc/profile;zkServer.sh start'
+ssh hadoop4 'source /etc/profile;zkServer.sh start'
+
+# Start HDFS (executed in current host)
+start-dfs.sh
+# Start Node Manager  (executed in current host)
+start-yarn.sh
+
+# Start Resource Manager
+ssh hadoop3 'source /etc/profile;yarn-daemon.sh start resourcemanager'
+ssh hadoop4 'source /etc/profile;yarn-daemon.sh start resourcemanager'
+```
