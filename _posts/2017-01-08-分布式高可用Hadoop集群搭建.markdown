@@ -115,8 +115,8 @@ export JAVA_HOME=/usr/java/jdk1.8.0_151
 export JAVA_HOME=/usr/java/jdk1.8.0_151
 ```
 
-* 修改core-site.xml文件
-```xml
+* 修改core-site.xml文件  
+```bash
 <configuration>
   <!--The name of the default file system-->
   <property>
