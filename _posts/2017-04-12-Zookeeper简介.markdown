@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:      "Zookeeper（一）简介"
+title:      "Zookeeper（一）zk常见应用场景"
 subtitle:   "Introduce to Zookeeper"
 date:       2017-04-12 12:00:00
 author:     "Spencer"
