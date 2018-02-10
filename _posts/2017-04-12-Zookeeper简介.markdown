@@ -19,7 +19,7 @@ b. 为用户程序提供数据节点监听服务
 
 ### 二. Zookeeper常见应用场景
 * 服务器状态的动态感知
-![zkfunction01.png](img/bigdata/zookeeper/zkfunction01.png)
+![zkfunction01.png](https://github.com/S-A-Scott/S-A-Scott.github.io/blob/master/img/bigdata/zookeeper/zkfunction01.png)
 考虑如下场景：
 多台数据采集服务器实时，流式的从数据生产服务器上接收数据。当其中一台数据采集服务器宕机时，其它数据采集服务器如何得知这个消息，并且临时接管这台服务器的工作。
 借助Zookeeper便能轻松解决这个问题：
@@ -28,7 +28,7 @@ b. 为用户程序提供数据节点监听服务
 3. 其他子节点收到信息后，可以查看是哪台节点宕机，并从存活的节点中选出一台临时接管server02的工作。
 
 * 服务器主从选举
-![zkfunction02.png](img/bigdata/zookeeper/zkfunction02.png)
+![zkfunction02.png](https://github.com/S-A-Scott/S-A-Scott.github.io/blob/master/img/bigdata/zookeeper/zkfunction02.png)
 场景如图所示：
 2台服务器组成的HA（High Available）架构，同一时刻只需要一台服务器工作。如何使得同一时刻只有一台服务器对外提供服务，并让客户端知道应该请求哪台服务器。
 在分布式领域，这样的问题也是借助Zookeeper解决的
