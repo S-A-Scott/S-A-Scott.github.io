@@ -6,7 +6,7 @@ date:       2017-04-13 12:00:00
 author:     "Spencer"
 header-img: "img/post-bg-2015.jpg"
 tags:
-    - Hadoop, Zookeeper
+    - Zookeeper
 ---
 
 ### 一. Zookeeper特性
