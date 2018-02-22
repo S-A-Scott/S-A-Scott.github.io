@@ -19,7 +19,7 @@ b. 为用户程序提供数据节点监听服务
 
 ### 二. Zookeeper常见应用场景
 * 服务器状态的动态感知
-![zkfunction01.png](/img/in-post/post-js-version/javascript-java.jpg)
+![zkfunction01.png](/img/in-post/post-js-version/zkfunction01.jpg)
 考虑如下场景：
 多台数据采集服务器实时，流式的从数据生产服务器上接收数据。当其中一台数据采集服务器宕机时，其它数据采集服务器如何得知这个消息，并且临时接管这台服务器的工作。
 借助Zookeeper便能轻松解决这个问题：
@@ -36,3 +36,9 @@ b. 为用户程序提供数据节点监听服务
 2. 按某个逻辑（例如注册的先后顺序），选举某台服务器当做Master，并修改state信息。
 3. 客户端此时只需访问Zookeeper便知道哪台服务器是Master。
 4. 当Master节点挂了后，Zookeeper会自动选择另一台节点作为Master。
+
+* 配置管理
+![zkfunction03.png](/img/in-post/post-js-version/zkfunction03.png)
+如图所示：
+数据切成N片后，同时跑在N台服务器上，每台服务器都保存一份相同的配置信息（例如需要处理哪些字段数据）。当配置信息改变时，如何保证每台服务器都更新成功便成了问题。
+只需要将配置信息放在Zookeeper上，并且Zookeeper监听各节点便可解决问题。
