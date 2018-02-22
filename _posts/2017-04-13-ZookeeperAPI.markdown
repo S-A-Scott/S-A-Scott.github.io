@@ -41,11 +41,11 @@ public class SimpleZkClient {
     }
     @Test
     public void testCreate() throws KeeperException, InterruptedException {
-      //创建一个znode
-      //参数1: 要创建的节点
-      //参数2: 节点数据
-      //参数3: 节点的权限
-      //参数4: 节点的类型
+        //创建一个znode
+        //参数1: 要创建的节点
+        //参数2: 节点数据
+        //参数3: 节点的权限
+        //参数4: 节点的类型
         String nodeCreated = zkClient.create("/intellij",
                 "It_this_node_data".getBytes(),
                 Ids.OPEN_ACL_UNSAFE,
@@ -91,15 +91,15 @@ public class DistributeServer {
     private static final String parentNode = "/servers";
     private ZooKeeper zk = null;
     public static void main(String[] args) throws Exception {
-    // 获取zk连接
-    DistributeServer server = new DistributeServer();
-    server.getConnect();
-    // 利用zk连接注册服务器信息
-    server.registerServer(args[0]);
-    // 注册完Zookeeper信息后，服务器处理自己原本的业务便可
-    System.out.println(args[0] + " is doing its business...");
-    Thread.sleep(Long.MAX_VALUE);
-  }
+        // 获取zk连接
+        DistributeServer server = new DistributeServer();
+        server.getConnect();
+        // 利用zk连接注册服务器信息
+        server.registerServer(args[0]);
+        // 注册完Zookeeper信息后，服务器处理自己原本的业务便可
+        System.out.println(args[0] + " is doing its business...");
+        Thread.sleep(Long.MAX_VALUE);
+    }
     public void getConnect() throws IOException {
         zk = new ZooKeeper(connectString, sessionTimeout, event -> {
           System.out.println(event.getType() + "------" + event.getPath());
