@@ -11,6 +11,7 @@ tags:
 ---
 
 > 说明：本文介绍MapReduce架构和运行流程都建立在yarn上，即mapreduce.framework.name属性为yarn。
+
 ### 一. MR程序运行流程
 ![mapreduceOnYarn.png](/img/in-post/post-js-version/mapreduceOnYarn.png)
 1. 客户端向ResourceManager申请提交application
