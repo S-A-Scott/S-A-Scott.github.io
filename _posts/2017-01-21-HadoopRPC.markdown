@@ -17,17 +17,17 @@ tags:
 
 ### 二. 代码实现
 * 通信协议
-```java
+{% highlight java linenos %}
 public interface ClientNamenodeProtocol {
   // 定义协议版本号
   public static final long versionID = 1L;
   // 定义通信接口
   public String getMetaData(String path);
 }
-```
+{% endhighlight %}
 
 * 服务器端实现业务功能
-```java
+{% highlight java linenos %}
 public class MyNameNode implements ClientNamenodeProtocol {
   // 模拟查询元数据
   @Override
@@ -35,10 +35,10 @@ public class MyNameNode implements ClientNamenodeProtocol {
     return "This is  meta data from " + path + " : replication - x, block locations - xxx";
   }
 }
-```
+{% endhighlight %}
 
 * 发布服务器
-```java
+{% highlight java linenos %}
 public class PublishServiceUtil {
   public static void main(String[] args) throws IOException {
     RPC.Builder builder = new RPC.Builder(new Configuration());
@@ -50,10 +50,10 @@ public class PublishServiceUtil {
     server.start();
   }
 }
-```
+{% endhighlight %}
 
 * 客户端
-```java
+{% highlight java linenos %}
 public class MyHDFSClient {
   public static void main(String[] args) throws IOException {
     InetSocketAddress inetSocketAddress = new InetSocketAddress("localhost", 8888);
@@ -62,4 +62,4 @@ public class MyHDFSClient {
     System.out.println(metaData);
   }
 }
-```
+{% endhighlight %}
