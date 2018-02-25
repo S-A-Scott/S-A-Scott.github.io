@@ -32,7 +32,8 @@ public class MyNameNode implements ClientNamenodeProtocol {
   // 模拟查询元数据
     @Override
     public String getMetaData(String path) {
-    return "This is  meta data from " + path + " : replication - x, block locations - xxx";
+        return "This is  meta data from " + path +
+            " : replication - x, block locations - xxx";
     }
 }
 ```
@@ -46,6 +47,7 @@ public class PublishServiceUtil {
                 .setPort(8888)
                 .setProtocol(ClientNamenodeProtocol.class)
                 .setInstance(new MyNameNode());
+
         RPC.Server server = builder.build();
         server.start();
     }
@@ -53,13 +55,15 @@ public class PublishServiceUtil {
 ```
 
 * 客户端
-{% highlight java linenos %}
+```java
 public class MyHDFSClient {
+
     public static void main(String[] args) throws IOException {
         InetSocketAddress inetSocketAddress = new InetSocketAddress("localhost", 8888);
         ClientNamenodeProtocol nameNode = RPC.getProxy(ClientNamenodeProtocol.class, 1L, inetSocketAddress, new Configuration());
+
         String metaData = nameNode.getMetaData("/users/root/hello.txt");
         System.out.println(metaData);
     }
 }
-{% endhighlight %}}
+```
