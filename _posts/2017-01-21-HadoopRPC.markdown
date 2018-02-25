@@ -40,14 +40,12 @@ public class MyNameNode implements ClientNamenodeProtocol {
 * 发布服务器
 ```java
 public class PublishServiceUtil {
-
   public static void main(String[] args) throws IOException {
     RPC.Builder builder = new RPC.Builder(new Configuration());
     builder.setBindAddress("localhost")
            .setPort(8888)
            .setProtocol(ClientNamenodeProtocol.class)
            .setInstance(new MyNameNode());
-
     RPC.Server server = builder.build();
     server.start();
   }
@@ -57,11 +55,9 @@ public class PublishServiceUtil {
 * 客户端
 ```java
 public class MyHDFSClient {
-
   public static void main(String[] args) throws IOException {
     InetSocketAddress inetSocketAddress = new InetSocketAddress("localhost", 8888);
     ClientNamenodeProtocol nameNode = RPC.getProxy(ClientNamenodeProtocol.class, 1L, inetSocketAddress, new Configuration());
-
     String metaData = nameNode.getMetaData("/users/root/hello.txt");
     System.out.println(metaData);
   }
