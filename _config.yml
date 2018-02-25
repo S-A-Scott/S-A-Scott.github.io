@@ -67,7 +67,7 @@ ga_domain: huangxuan.me
 
 # Sidebar settings
 sidebar: true                           # whether or not using Sidebar.
-sidebar-about-description: "その中でただ前だけを見てる, 10年後の私へ, 今は幸せでしょうか, それとも悲しみで"
+sidebar-about-description: "その中でただ前だけを見てる<br> 10年後の私へ<br> 今は幸せでしょうか<br> それとも悲しみで"
 sidebar-avatar: /img/avator-hux2.png      # use absolute URL, seeing it's used in both `/` and `/about/`
 
 
