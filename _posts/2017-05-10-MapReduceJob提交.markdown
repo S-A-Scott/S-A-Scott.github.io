@@ -6,7 +6,6 @@ date:       2017-05-10 12:00:00
 author:     "Spencer"
 header-img: "img/post-bg-2015.jpg"
 tags:
-	- 源码
     - MapReduce
     - Hadoop
 ---
