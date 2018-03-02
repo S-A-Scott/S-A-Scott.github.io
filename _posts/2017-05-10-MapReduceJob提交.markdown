@@ -18,7 +18,7 @@ tags:
 > * 使用debug的模式跟踪代码，获取变量值，文本使用{variable value }表示debug模式下获得的变量值。客户端代码是最简单的wordcount
 
 ### 一. Job提交流程图
-![job提交过程.png](/img/in-post/post-js-version/job提交过程.png))
+![job提交过程.png](/img/in-post/post-js-version/job提交过程.png)
 
 ### 二. Job提交源码追踪
 * 在客户端代码中，是通过job.waitForCompletion提交的作业的。
