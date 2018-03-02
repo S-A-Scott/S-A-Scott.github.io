@@ -10,9 +10,9 @@ tags:
     - Hadoop
 ---
 
-### 一. shuffle阶段执行过程
-<img class="shadow" width="1080"
+<img class="shadow" width="800"
 src="/img/in-post/post-js-version/shuffle.png" />
+### 一. shuffle阶段执行过程
 <!-- ![shuffle.png](/img/in-post/post-js-version/shuffle.png) -->
 
 * shuffle是MapReduce处理流程中的一个过程，大致分为如下过程
