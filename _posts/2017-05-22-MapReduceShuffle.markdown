@@ -10,8 +10,8 @@ tags:
     - Hadoop
 ---
 
-![shuffle.png](/img/in-post/post-js-version/shuffle.png)
 ### 一. shuffle阶段执行过程
+![shuffle.png](/img/in-post/post-js-version/shuffle.png)
 
 * shuffle是MapReduce处理流程中的一个过程，大致分为如下过程
 1. maptask收集map方法输出的k,v对，放入内存缓冲区中
@@ -39,7 +39,7 @@ collector会在NewOutputCollector构造方法中通过createSortingCollector方�
 * 首先先看MapOutputBuffer的init方法（因为长度原因，省略了部分不涉及数据逻辑的代码）
 ```java
 public void init(MapOutputCollector.Context context
-) throws IOException, ClassNotFoundException {
+    ) throws IOException, ClassNotFoundException {
     // 获取reduce个数，客户端中通过job.setNumReduceTasks()设置
     // 如果不设置默认为1
     partitions = job.getNumReduceTasks();
@@ -184,9 +184,9 @@ public synchronized void collect(K key, V value, final int partition
         int keystart = bufindex;
         keySerializer.serialize(key);
         if (bufindex < keystart) {
-          // wrapped the key; must make contiguous
-          bb.shiftBufferedKey();
-          keystart = 0;
+            // wrapped the key; must make contiguous
+            bb.shiftBufferedKey();
+            keystart = 0;
         }
         // serialize value bytes into buffer
         final int valstart = bufindex;
