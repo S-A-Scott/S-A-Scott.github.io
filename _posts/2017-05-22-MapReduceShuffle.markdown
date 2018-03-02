@@ -188,4 +188,5 @@ public synchronized void collect(K key, V value, final int partition
             bb.shiftBufferedKey();
             keystart = 0;
         }
+    }
 }
