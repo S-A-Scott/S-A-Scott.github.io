@@ -17,7 +17,10 @@ tags:
 > * 文件系统：HDFS
 > * 使用debug的模式跟踪代码，获取变量值，文本使用{variable value }表示debug模式下获得的变量值。客户端代码是最简单的wordcount
 
-### 一. Job提交过程
+### 一. Job提交流程图
+![job提交过程.png](/img/in-post/post-js-version/job提交过程.png))
+
+### 二. Job提交源码追踪
 * 在客户端代码中，是通过job.waitForCompletion提交的作业的。
 ```java
 public boolean waitForCompletion(boolean verbose
@@ -45,7 +48,7 @@ public boolean waitForCompletion(boolean verbose
     }
 ```
 
-* 代码是通过submit方法来提交的
+* waitForCompletion内部是通过submit提交的
 ```java
  public void submit()
             throws IOException, InterruptedException, ClassNotFoundException {
@@ -220,7 +223,7 @@ JobStatus submitJobInternal(Job job, Cluster cluster)
     }
 }
 ```
-有关map是如何切片的可以参考另一篇(博客)[http://www.todo.com]
+有关map是如何切片的可以参考另一篇(博客)[http://blog.csdn.net/u010010428/article/details/51469994]
 
 ---
 * 继续查看LocalJobRunner是如何submitJob的
@@ -295,3 +298,183 @@ public Job(JobID jobid, String jobSubmitDir) throws IOException {
 ```
 
 * 接着看下Job的run方法
+```java
+public void run() {
+    // jobID {job_local1128794791_0001}
+    JobID jobId = profile.getJobID();
+    JobContext jContext = new JobContextImpl(job, jobId);
+
+    org.apache.hadoop.mapreduce.OutputCommitter outputCommitter = null;
+    try {
+        // outputCommitter {FileOutputCommitter}
+        outputCommitter = createOutputCommitter(conf.getUseNewMapper(), jobId, conf);
+    } catch (Exception e) {
+        LOG.info("Failed to createOutputCommitter", e);
+        return;
+    }
+
+    try {
+        // 从systemJobDir中获得job.split信息，创建出TaskSplitMetaInfo对象
+        JobSplit.TaskSplitMetaInfo[] taskSplitMetaInfos =
+                SplitMetaInfoReader.readSplitMetaInfo(jobId, localFs, conf, systemJobDir);
+
+        // 获取reduce task数量
+        // numReduceTasks {1}
+        int numReduceTasks = job.getNumReduceTasks();
+        outputCommitter.setupJob(jContext);
+        status.setSetupProgress(1.0f);
+
+        // 创建Map的输出对象
+        Map<TaskAttemptID, MapOutputFile> mapOutputFiles =
+                Collections.synchronizedMap(new HashMap<TaskAttemptID, MapOutputFile>());
+
+        // 每一个切片建立MapTaskRunnable对象，并加入集合
+        List<LocalJobRunner.Job.RunnableWithThrowable> mapRunnables = getMapTaskRunnables(
+                taskSplitMetaInfos, jobId, mapOutputFiles);
+
+        initCounters(mapRunnables.size(), numReduceTasks);
+        // 创建线程池，用的是Executor的newFiexedThreadPool方法
+        ExecutorService mapService = createMapExecutor();
+        // 启动线程池，运行MapTaskRunnable中的run方法
+        // MapTaskRunnable的run方法中会调用MapTask的run方法
+        runTasks(mapRunnables, mapService, "map");
+
+        try {
+            if (numReduceTasks > 0) {
+                // 相同方式创建，启动ReduceTaskRunnable
+                List<LocalJobRunner.Job.RunnableWithThrowable> reduceRunnables = getReduceTaskRunnables(
+                        jobId, mapOutputFiles);
+                ExecutorService reduceService = createReduceExecutor();
+                runTasks(reduceRunnables, reduceService, "reduce");
+            }
+        } finally {
+            for (MapOutputFile output : mapOutputFiles.values()) {
+                output.removeAll();
+            }
+        }
+        // delete the temporary directory in output directory
+        outputCommitter.commitJob(jContext);
+        status.setCleanupProgress(1.0f);
+
+        if (killed) {
+            this.status.setRunState(JobStatus.KILLED);
+        } else {
+            this.status.setRunState(JobStatus.SUCCEEDED);
+        }
+
+        JobEndNotifier.localRunnerNotification(job, status);
+    } catch (Throwable t) {
+        try {
+            outputCommitter.abortJob(jContext,
+                    org.apache.hadoop.mapreduce.JobStatus.State.FAILED);
+        } catch (IOException ioe) {
+            LOG.info("Error cleaning up job:" + id);
+        }
+        status.setCleanupProgress(1.0f);
+        if (killed) {
+            this.status.setRunState(JobStatus.KILLED);
+        } else {
+            this.status.setRunState(JobStatus.FAILED);
+        }
+        LOG.warn(id, t);
+
+        JobEndNotifier.localRunnerNotification(job, status);
+
+    } finally {
+        try {
+            fs.delete(systemJobFile.getParent(), true);  // delete submit dir
+            localFs.delete(localJobFile, true);              // delete local copy
+            // Cleanup distributed cache
+            localDistributedCacheManager.close();
+        } catch (IOException e) {
+            LOG.warn("Error cleaning up "+id+": "+e);
+        }
+    }
+}
+```
+
+* 接着我们看下运行mapTask和reduceTask的runTasks中的代码
+```java
+private void runTasks(List<LocalJobRunner.Job.RunnableWithThrowable> runnables,
+    ExecutorService service, String taskType) throws Exception {
+    // Start populating the executor with work units.
+    // They may begin running immediately (in other threads).
+    // 从runnables集合中取出mapTask任务，放入线程池中运行
+    for (Runnable r : runnables) {
+        // 加入线程池，执行mapTask的run方法
+        service.submit(r);
+    }
+
+    try {
+        service.shutdown(); // Instructs queue to drain.
+
+        // Wait for tasks to finish; do not use a time-based timeout.
+        // (See http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6179024)
+        LOG.info("Waiting for " + taskType + " tasks");
+        service.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+    } catch (InterruptedException ie) {
+        // Cancel all threads.
+        service.shutdownNow();
+        throw ie;
+    }
+
+    LOG.info(taskType + " task executor complete.");
+
+    // After waiting for the tasks to complete, if any of these
+    // have thrown an exception, rethrow it now in the main thread context.
+    for (LocalJobRunner.Job.RunnableWithThrowable r : runnables) {
+        if (r.storedException != null) {
+            throw new Exception(r.storedException);
+        }
+    }
+}
+```
+runTasks主要就是创建线程启动Map/Reduce TaskRunnable的run方法（因为MapTask和ReduceTask代码逻辑基本相同，下面将以MapTask为例)
+
+* MapTaskRunnable的run方法如下
+```java
+public void run() {
+    try {
+    // 1128794791_0001
+        // mapId {attempt_local1128794791_0001_m_000000_0}
+        TaskAttemptID mapId = new TaskAttemptID(new TaskID(
+                jobId, TaskType.MAP, taskId), 0);
+        LOG.info("Starting task: " + mapId);
+        mapIds.add(mapId);
+        // systemJobFile {file:/tmp/hadoop-spencer/mapred/staging/root1128794791/.staging/job_local1128794791_0001/job.xml}
+        // taskId {0} 后面的mapTask任务的taskId会逐一递增
+        // 创建MapTask
+        MapTask map = new MapTask(systemJobFile.toString(), mapId, taskId,
+                info.getSplitIndex(), 1);
+        map.setUser(UserGroupInformation.getCurrentUser().
+                getShortUserName());
+        setupChildMapredLocalDirs(map, localConf);
+
+        MapOutputFile mapOutput = new MROutputFiles();
+        mapOutput.setConf(localConf);
+        mapOutputFiles.put(mapId, mapOutput);
+
+        map.setJobFile(localJobFile.toString());
+        localConf.setUser(map.getUser());
+        map.localizeConfiguration(localConf);
+        map.setConf(localConf);
+        try {
+            map_tasks.getAndIncrement();
+            myMetrics.launchMap(mapId);
+            // 启动map的run方法
+            map.run(localConf, LocalJobRunner.Job.this);
+            myMetrics.completeMap(mapId);
+        } finally {
+            map_tasks.getAndDecrement();
+        }
+
+        LOG.info("Finishing task: " + mapId);
+    } catch (Throwable e) {
+        this.storedException = e;
+    }
+}
+```
+可见MapTaskRunnable主要任务是创建出MapTask，然后启动其map方法
+
+---
+至此，Job提交作业的大致流程，已及map任务和reduce任务是如何跑起来的已经基本弄清。
