@@ -153,6 +153,8 @@ public void init(MapOutputCollector.Context context
 ```
 init方法中初始化接下来完成溢写工作需要的类，并启动了Spill线程。
 
+---
+
 * 接着看下MapOutputBuffer中的collect方法。
 ```java
 public synchronized void collect(K key, V value, final int partition
@@ -259,3 +261,186 @@ public void write(byte b[], int off, int len)
     bufindex += len;
 }
 ```
+Kvbuffer，名如其义，但是这里面不光放置了数据，还放置了一些索引数据，给放置索引数据的区域起了一个Kvmeta的别名，在Kvbuffer的一块区域上穿了一个IntBuffer（字节序采用的是平台自身的字节序）的马甲。数据区域和索引数据区域在Kvbuffer中是相邻不重叠的两个区域，用一个分界点来划分两者，分界点不是亘古不变的，而是每次Spill之后都会更新一次。初始的分界点是0，数据的存储方向是向上增长，索引数据的存储方向是向下增长，如图所示：
+![kvbuffer.png](quiver-image-url/049E8A3B26AB135405BBAB1CB3C99F95.jpg =644x197)
+Kvbuffer的存放指针bufindex是一直闷着头地向上增长，比如bufindex初始值为0，一个Int型的key写完之后，bufindex增长为4，一个Int型的value写完之后，bufindex增长为8。
+
+索引是对在kvbuffer中的键值对的索引，是个四元组，包括：value的起始位置、key的起始位置、partition值、value的长度，占用四个Int长度，Kvmeta的存放指针Kvindex每次都是向下跳四个“格子”，然后再向上一个格子一个格子地填充四元组的数据。比如Kvindex初始位置是-4，当第一个键值对写完之后，(Kvindex+0)的位置存放value的起始位置、(Kvindex+1)的位置存放key的起始位置、(Kvindex+2)的位置存放partition的值、(Kvindex+3)的位置存放value的长度，然后Kvindex跳到-8位置，等第二个键值对和索引写完之后，Kvindex跳到-12位置。
+
+---
+
+* 前面描述了k,v数据和其索引是如何通过collect方法写入kvbuffer中的，当数据达到spillper时（默认为80%）会向SpillThread发送信号，使得SpillThread启动SortAndSpill方法将排序并溢写至文件。这里为了观察方便，用{value}代表debug调试时获得的变量值。
+```java
+private void sortAndSpill() throws IOException, ClassNotFoundException,
+        InterruptedException {
+    //approximate the length of the output file to be the length of the
+    //buffer + header lengths for the partitions
+    // 预估的文件大小 {size : 2044}
+    final long size = distanceTo(bufstart, bufend, bufvoid) +
+            partitions * APPROX_HEADER_LENGTH;
+    FSDataOutputStream out = null;
+    try {
+        // create spill file
+        // partitions = job.getNumReduceTasks() 分区的个数 {paritions : 10}
+        final SpillRecord spillRec = new SpillRecord(partitions);
+        // 溢写出文件的路径及文件名
+        // {filename : /tmp/hadoop-spencer/mapred/local/localRunner/root/jobcache/job_local2001897110_0001/attempt_local2001897110_0001_m_000000_0/output/spill0.out}
+        final Path filename =
+                mapOutputFile.getSpillFileForWrite(numSpills, size);
+        // FSDataOutputStream打开文件，获取输出流
+        out = rfs.create(filename);
+
+        final int mstart = kvend / NMETA;
+        final int mend = 1 + // kvend is a valid record
+                (kvstart >= kvend
+                        ? kvstart
+                        : kvmeta.capacity() + kvstart) / NMETA;
+        // 将kvbuffer中的数据按照partiton值和key值升序排序
+        // 移动的只是索引数据
+        // {sorter : QuickSort}
+        sorter.sort(MapOutputBuffer.this, mstart, mend, reporter);
+        int spindex = mstart;
+        final IndexRecord rec = new IndexRecord();
+        final InMemValBytes value = new InMemValBytes();
+        for (int i = 0; i < partitions; ++i) {
+            IFile.Writer<K, V> writer = null;
+            try {
+                long segmentStart = out.getPos();
+                FSDataOutputStream partitionOut = CryptoUtils.wrapIfNecessary(job, out);
+                writer = new Writer<K, V>(job, partitionOut, keyClass, valClass, codec,
+                        spilledRecordsCounter);
+                // 检查是否设置了Combiner，MR中没有设置的话则为null
+                if (combinerRunner == null) {
+                    // spill directly
+                    DataInputBuffer key = new DataInputBuffer();
+                    // 将kvmeta中记录的分区号为i的数据写出
+                    while (spindex < mend &&
+                            kvmeta.get(offsetFor(spindex % maxRec) + PARTITION) == i) {
+                        final int kvoff = offsetFor(spindex % maxRec);
+                        int keystart = kvmeta.get(kvoff + KEYSTART);
+                        int valstart = kvmeta.get(kvoff + VALSTART);
+                        key.reset(kvbuffer, keystart, valstart - keystart);
+                        getVBytesForOffset(kvoff, value);
+                        // 向filename文件中写入数据
+                        writer.append(key, value);
+                        ++spindex;
+                    }
+                } else {
+                    int spstart = spindex;
+                    while (spindex < mend &&
+                            kvmeta.get(offsetFor(spindex % maxRec)
+                                    + PARTITION) == i) {
+                        ++spindex;
+                    }
+                    // Note: we would like to avoid the combiner if we've fewer
+                    // than some threshold of records for a partition
+                    if (spstart != spindex) {
+                        combineCollector.setWriter(writer);
+                        // 如果设置了Combiner则会将数据组成K, IterV的形式作为Combiner的输入
+                        RawKeyValueIterator kvIter =
+                                new MRResultIterator(spstart, spindex);
+                        // 启动combiner
+                        combinerRunner.combine(kvIter, combineCollector);
+                    }
+                }
+
+                // close the writer
+                writer.close();
+
+                // record offsets
+                // 给SpillRecord复制
+                rec.startOffset = segmentStart;
+                rec.rawLength = writer.getRawLength() + CryptoUtils.cryptoPadding(job);
+                rec.partLength = writer.getCompressedLength() + CryptoUtils.cryptoPadding(job);
+                spillRec.putIndex(rec, i);
+
+                writer = null;
+            } finally {
+                if (null != writer) writer.close();
+            }
+        }
+
+        // 索引文件的缓冲区大小默认为1048576bytes，超过这个大小会写入磁盘中
+        if (totalIndexCacheMemory >= indexCacheMemoryLimit) {
+            // create spill index file
+            Path indexFilename =
+                    mapOutputFile.getSpillIndexFileForWrite(numSpills, partitions
+                            * MAP_OUTPUT_INDEX_RECORD_LENGTH);
+            spillRec.writeToFile(indexFilename, job);
+        } else {
+            indexCacheList.add(spillRec);
+            totalIndexCacheMemory +=
+                    spillRec.size() * MAP_OUTPUT_INDEX_RECORD_LENGTH;
+        }
+        LOG.info("Finished spill " + numSpills);
+        ++numSpills;
+    } finally {
+        if (out != null) out.close();
+    }
+}
+```
+整个过程主要完成了两步，一是将MapOutPutBuffer中的kvbuffer进行排序（只是对kvmeta中的索引排序），其compare方法中先比较parition，partition相同再比较key。二是将k,v数据写入filename文件中去。
+<!--MapOutputBuffer实现了IndexedSortable接口，所以可以使用QuickSort对MapOutputBuffer进行排序。`sorter.sort(MapOutputBuffer.this, mstart, mend, reporter);`下面看MapOutputBuffer是如何实现IndexedSortable接口的Compare和swap方法的。-->
+<!--```java-->
+<!--```-->
+
+---
+
+至此，从用户自定义的map方法中context.write输出k，v到k，v如何写入磁盘的过程已经大致写出。当map读取所有输入并且完成输出后，会关闭OutputCollector，out.close方法中会调用MapOutputBuffer的flush方法。在flush方法中会将kvbuffer中的数据溢写出，然后合并所有生成的溢写文件。(spill.1.out spill.2.out... => file.out)
+```java
+public void flush() throws IOException, ClassNotFoundException,
+        InterruptedException {
+    LOG.info("Starting flush of map output");
+    spillLock.lock();
+    try {
+        while (spillInProgress) {
+            reporter.progress();
+            spillDone.await();
+        }
+        checkSpillException();
+
+        final int kvbend = 4 * kvend;
+        if ((kvbend + METASIZE) % kvbuffer.length !=
+                equator - (equator % METASIZE)) {
+            // spill finished
+            resetSpill();
+        }
+        if (kvindex != kvend) {
+            kvend = (kvindex + NMETA) % kvmeta.capacity();
+            bufend = bufmark;
+            LOG.info("Spilling map output");
+            LOG.info("bufstart = " + bufstart + "; bufend = " + bufmark +
+                    "; bufvoid = " + bufvoid);
+            LOG.info("kvstart = " + kvstart + "(" + (kvstart * 4) +
+                    "); kvend = " + kvend + "(" + (kvend * 4) +
+                    "); length = " + (distanceTo(kvend, kvstart,
+                    kvmeta.capacity()) + 1) + "/" + maxRec);
+            sortAndSpill();
+        }
+    } catch (InterruptedException e) {
+        throw new IOException("Interrupted while waiting for the writer", e);
+    } finally {
+        spillLock.unlock();
+    }
+    assert !spillLock.isHeldByCurrentThread();
+    // shut down spill thread and wait for it to exit. Since the preceding
+    // ensures that it is finished with its work (and sortAndSpill did not
+    // throw), we elect to use an interrupt instead of setting a flag.
+    // Spilling simultaneously from this thread while the spill thread
+    // finishes its work might be both a useful way to extend this and also
+    // sufficient motivation for the latter approach.
+    try {
+        spillThread.interrupt();
+        spillThread.join();
+    } catch (InterruptedException e) {
+        throw new IOException("Spill failed", e);
+    }
+    // release sort buffer before the merge
+    kvbuffer = null;
+    mergeParts();
+    Path outputPath = mapOutputFile.getOutputFile();
+    fileOutputByteCounter.increment(rfs.getFileStatus(outputPath).getLen());
+}
+```
+
+后面reduce端拉取结果，进行合并的过程逻辑上和之前差不多，等过段时间不忙了再分析吧。
