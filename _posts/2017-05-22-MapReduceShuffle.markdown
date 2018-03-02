@@ -188,6 +188,42 @@ public synchronized void collect(K key, V value, final int partition
             bb.shiftBufferedKey();
             keystart = 0;
         }
+
+        // serialize value bytes into buffer
+        final int valstart = bufindex;
+        // 如果value是Text类型的，内部的调用链如下
+        // WritableSerialize()方法中调用w.write()方法，w.write()调用的是Text的write方法
+        // Text的write方法中调用的是MapOutoutBuffer内部类Buffer的write方法，在Buffer的write
+        // 方法中完成数据写入缓冲区(kvbuff)的过程
+        valSerializer.serialize(value);
+        bb.write(b0, 0, 0);
+        // the record must be marked after the preceding write, as the metadata
+        // for this record are not yet written
+        int valend = bb.markRecord();
+
+        mapOutputRecordCounter.increment(1);
+        mapOutputByteCounter.increment(
+                distanceTo(keystart, valend, bufvoid));
+
+        // write accounting info
+        // 第一个参数表示的是offset，第二个参数是要写入的数据
+        // 存放分区号,kvindex+xxx表示的是内存中的地址
+        kvmeta.put(kvindex + PARTITION, partition);
+        // 存放key起始位置
+        kvmeta.put(kvindex + KEYSTART, keystart);
+        // 存放value起始位置
+        kvmeta.put(kvindex + VALSTART, valstart);
+        // 存放value的长度
+        kvmeta.put(kvindex + VALLEN, distanceTo(valstart, valend));
+        // advance kvindex
+        // 索引增长方式向下
+        // kvmeta.capacity()为缓冲区的大小/4 （因为一个kvmeta需要占用4个字节）
+        kvindex = (kvindex - NMETA + kvmeta.capacity()) % kvmeta.capacity();
+    } catch (MapBufferTooSmallException e) {
+        LOG.info("Record too large for in-memory buffer: " + e.getMessage());
+        spillSingleRecord(key, value, partition);
+        mapOutputRecordCounter.increment(1);
+        return;
     }
 }
 ```
