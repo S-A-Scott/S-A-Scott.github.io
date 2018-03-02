@@ -9,8 +9,9 @@ tags:
     - MapReduce
     - Hadoop
 ---
-### 一. shuffle阶段执行过程
+
 ![shuffle.png](/img/in-post/post-js-version/shuffle.png)
+### 一. shuffle阶段执行过程
 
 * shuffle是MapReduce处理流程中的一个过程，大致分为如下过程
 1. maptask收集map方法输出的k,v对，放入内存缓冲区中
@@ -166,12 +167,11 @@ public synchronized void collect(K key, V value, final int partition
         try {
             do {
                 if (!spillInProgress) {
-                        ...
-                        // startSpill设置信号量，使SpillThread调用sortAndSpill方法对
-                        // 缓存中的数据进行排序后溢写出文件
-                        startSpill();
-                        ....
-                    }
+                    ...
+                    // startSpill设置信号量，使SpillThread调用sortAndSpill方法对
+                    // 缓存中的数据进行排序后溢写出文件
+                    startSpill();
+                    ....
                 }
             } while (false);
         } finally {
