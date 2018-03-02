@@ -1,7 +1,7 @@
 ---
 layout:     post
 title:      "MapReduce源码分析（三）Shuffle阶段"
-subtitle:   "Source Code of MR Job Commit"
+subtitle:   "Source Code of MR Shuffle"
 date:       2017-05-22 12:00:00
 author:     "Spencer"
 header-img: "img/post-bg-2015.jpg"
