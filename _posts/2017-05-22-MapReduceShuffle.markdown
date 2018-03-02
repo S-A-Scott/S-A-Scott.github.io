@@ -226,8 +226,9 @@ public synchronized void collect(K key, V value, final int partition
         return;
     }
 }
-
-// Serializer.serialize中调用的向kvbuffer写k,v数据的write方法
+```
+* Serializer.serialize中调用的向kvbuffer写k,v数据的write方法
+```java
 public void write(byte b[], int off, int len)
         throws IOException {
     // 缓冲区大小占80%时开启SpillThread溢写
