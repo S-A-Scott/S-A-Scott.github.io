@@ -167,11 +167,11 @@ public synchronized void collect(K key, V value, final int partition
         try {
             do {
                 if (!spillInProgress) {
-                    // ...
+                     ...
                     // startSpill设置信号量，使SpillThread调用sortAndSpill方法对
                     // 缓存中的数据进行排序后溢写出文件
                     startSpill();
-                    // ....
+                     ....
                 }
             } while (false);
         } finally {
