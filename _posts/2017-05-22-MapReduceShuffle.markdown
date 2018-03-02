@@ -156,7 +156,7 @@ init方法中初始化接下来完成溢写工作需要的类，并启动了Spil
 * 接着看下MapOutputBuffer中的collect方法。
 ```java
 public synchronized void collect(K key, V value, final int partition
-) throws IOException {
+    ) throws IOException {
     // bufferRemaining表示再写入多少数据时，才会发生溢写
     bufferRemaining -= METASIZE;
     // 当bufferRemaining <= 0时，开启溢写
@@ -167,11 +167,11 @@ public synchronized void collect(K key, V value, final int partition
         try {
             do {
                 if (!spillInProgress) {
-                    ...
+                    // ...
                     // startSpill设置信号量，使SpillThread调用sortAndSpill方法对
                     // 缓存中的数据进行排序后溢写出文件
                     startSpill();
-                    ....
+                    // ....
                 }
             } while (false);
         } finally {
