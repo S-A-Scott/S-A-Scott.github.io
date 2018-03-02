@@ -226,4 +226,35 @@ public synchronized void collect(K key, V value, final int partition
         return;
     }
 }
+
+// Serializer.serialize中调用的向kvbuffer写k,v数据的write方法
+public void write(byte b[], int off, int len)
+        throws IOException {
+    // 缓冲区大小占80%时开启SpillThread溢写
+    bufferRemaining -= len;
+    if (bufferRemaining <= 0) {
+        spillLock.lock();
+        try {
+            do {
+                ....
+            } while (blockwrite);
+        } finally {
+            spillLock.unlock();
+        }
+    }
+    // here, we know that we have sufficient space to write
+    // bufvoid定义是 kvbuffer.length;
+    // 这步处理的是如果要写的数据大小加上已经有的数据大小，超过kvbuffer的大小
+    // 需要处理的逻辑
+    if (bufindex + len > bufvoid) {
+        final int gaplen = bufvoid - bufindex;
+        System.arraycopy(b, off, kvbuffer, bufindex, gaplen);
+        len -= gaplen;
+        off += gaplen;
+        bufindex = 0;
+    }
+    // arraycopy会把序列化后的数据b，写入kvbuffer中
+    System.arraycopy(b, off, kvbuffer, bufindex, len);
+    bufindex += len;
+}
 ```
