@@ -161,22 +161,7 @@ public synchronized void collect(K key, V value, final int partition
     bufferRemaining -= METASIZE;
     // 当bufferRemaining <= 0时，开启溢写
     if (bufferRemaining <= 0) {
-        // start spill if the thread is not running and the soft limit has been
-        // reached
-        spillLock.lock();
-        try {
-            do {
-                if (!spillInProgress) {
-                    // ...
-                    // startSpill设置信号量，使SpillThread调用sortAndSpill方法对
-                    // 缓存中的数据进行排序后溢写出文件
-                    startSpill();
-                    // ....
-                }
-            } while (false);
-        } finally {
-            spillLock.unlock();
-        }
+        
     }
 
     try {
