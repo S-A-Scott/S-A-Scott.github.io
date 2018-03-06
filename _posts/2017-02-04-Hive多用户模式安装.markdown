@@ -49,28 +49,28 @@ export PATH=$PATH:$HIVE_HOME/bin
 3. 配置hadoop3（MetaStore Server）
 * 进入$HIVE_HOME下的conf目录，修改hive-site.xml
 ```xml
-    <configuration>
-      <property>
-        <name>hive.metastore.warehouse.dir</name>
-        <value>/user/hive/warehouse</value>
-      </property>
-      <property>
-        <name>javax.jdo.option.ConnectionURL</name>
-        <value>jdbc:mysql://hadoop1:3306/hive?createDatabaseIfNotExist=true</value>
-      </property>
-      <property>
-        <name>javax.jdo.option.ConnectionDriverName</name>
-        <value>com.mysql.jdbc.Driver</value>
-      </property>
-      <property>
-        <name>javax.jdo.option.ConnectionUserName</name>
-        <value>root</value>
-      </property>
-      <property>
-        <name>javax.jdo.option.ConnectionPassword</name>
-        <value>MyNewPass4!</value>
-      </property>
-    </configuration>
+	<configuration>
+	  <property>
+		<name>hive.metastore.warehouse.dir</name>
+		<value>/user/hive/warehouse</value>
+	  </property>
+	  <property>
+		<name>javax.jdo.option.ConnectionURL</name>
+		<value>jdbc:mysql://hadoop1:3306/hive?createDatabaseIfNotExist=true</value>
+	  </property>
+	  <property>
+		<name>javax.jdo.option.ConnectionDriverName</name>
+		<value>com.mysql.jdbc.Driver</value>
+	  </property>
+	  <property>
+		<name>javax.jdo.option.ConnectionUserName</name>
+		<value>root</value>
+	  </property>
+	  <property>
+		<name>javax.jdo.option.ConnectionPassword</name>
+		<value>MyNewPass4!</value>
+	  </property>
+	</configuration>
 ```
 
 * 拷贝mysql连接驱动到HIVE_HOME/lib目录下
@@ -79,20 +79,20 @@ export PATH=$PATH:$HIVE_HOME/bin
 4. 配置hadoop4（MetaStore Client）
 * 进入$HIVE_HOME下的conf目录，修改hive-site.xml
 ```xml
-    <configuration>
-      <property>
-        <name>hive.metastore.warehouse.dir</name>
-        <value>/user/hive/warehouse</value>
-      </property>
-      <property>
-        <name>hive.metastore.local</name>
-        <value>false</value>
-      </property>
-      <property>
-        <name>hive.metastore.uris</name>
-        <value>thrift://hadoop3:9083</value>
-      </property>
-    </configuration>
+	<configuration>
+	  <property>
+		<name>hive.metastore.warehouse.dir</name>
+		<value>/user/hive/warehouse</value>
+	  </property>
+	  <property>
+		<name>hive.metastore.local</name>
+		<value>false</value>
+	  </property>
+	  <property>
+		<name>hive.metastore.uris</name>
+		<value>thrift://hadoop3:9083</value>
+	  </property>
+	</configuration>
 ```
 
 * 删除`$HADOOP_PREFIX/share/hadoop/yarn/lib`目录下的jline jar包，将`$HIVE_HOME/lib`下的jline jar包复制过去
