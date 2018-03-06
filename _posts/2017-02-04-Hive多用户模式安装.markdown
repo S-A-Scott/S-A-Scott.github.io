@@ -48,7 +48,7 @@ export PATH=$PATH:$HIVE_HOME/bin
 
 3. 配置hadoop3（MetaStore Server）
 
-* 进入$HIVE_HOME下的conf目录，修改hive-site.xml文件
+	* 进入$HIVE_HOME下的conf目录，修改hive-site.xml文件
 ```xml
 	<configuration>
 	  <property>
@@ -74,12 +74,12 @@ export PATH=$PATH:$HIVE_HOME/bin
 	</configuration>
 ```
 
-* 拷贝mysql连接驱动到HIVE_HOME/lib目录下
+	* 拷贝mysql连接驱动到HIVE_HOME/lib目录下
 `cp /root/mysql-connector-java-5.1.32-bin.jar $HIVE_HOME/lib`
 
 4. 配置hadoop4（MetaStore Client）
 
-* 进入$HIVE_HOME下的conf目录，修改hive-site.xml文件
+	* 进入$HIVE_HOME下的conf目录，修改hive-site.xml文件
 ```xml
 	<configuration>
 	  <property>
@@ -97,7 +97,7 @@ export PATH=$PATH:$HIVE_HOME/bin
 	</configuration>
 ```
 
-* 删除`$HADOOP_PREFIX/share/hadoop/yarn/lib`目录下的jline jar包，将`$HIVE_HOME/lib`下的jline jar包复制过去
+	* 删除`$HADOOP_PREFIX/share/hadoop/yarn/lib`目录下的jline jar包，将`$HIVE_HOME/lib`下的jline jar包复制过去
 ```shell
 cd /usr/local/hadoop-2.6.5/share/hadoop/yarn/lib
 rm jline*.jar
