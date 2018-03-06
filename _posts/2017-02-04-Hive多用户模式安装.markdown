@@ -47,6 +47,7 @@ export PATH=$PATH:$HIVE_HOME/bin
 ```
 
 3. 配置hadoop3（MetaStore Server）
+
 * 进入$HIVE_HOME下的conf目录，修改hive-site.xml文件
 ```xml
 	<configuration>
@@ -77,6 +78,7 @@ export PATH=$PATH:$HIVE_HOME/bin
 `cp /root/mysql-connector-java-5.1.32-bin.jar $HIVE_HOME/lib`
 
 4. 配置hadoop4（MetaStore Client）
+
 * 进入$HIVE_HOME下的conf目录，修改hive-site.xml文件
 ```xml
 	<configuration>
