@@ -1,0 +1,104 @@
+---
+layout:     post
+title:      "多用户模式Hive安装"
+subtitle:   "HIVE INSTALLATION"
+date:       2017-02-04 12:00:00
+author:     "Spencer"
+header-img: "img/post-bg-2015.jpg"
+tags:
+    - Hive
+    - Hadoop
+---
+> Hive版本: 1.2.1
+> MySQL connector版本：5.1.32
+
+### 一. Hive搭建模式
+* local模式
+此模式连接到一个In-memory的数据库Derby，一般用于Unit Test
+![hivelocal.png](/img/in-post/post-js-version/hivelocal.png)
+
+* 单用户模式
+通过网络连接到一个数据库中（通常是Mysql），是最经常使用到的模式
+![hivesingleuser.png](/img/in-post/post-js-version/hivesingleuser.png)
+
+* 多用户模式
+用于非Java客户端访问元数据库，在服务器端启动MetaStoreServer，客户端利用Thrift协议通过MetaStoreServer访问元数据库
+![hivemultiuser.png](/img/in-post/post-js-version/hivesingleuser.png)
+
+### 二. 多用户模式安装配置
+
+1. 集群规划
+
+| IP地址       | 主机名  | 角色             |
+| ------------ | ------- | ---------------- |
+| 10.211.55.7  | hadoop1 | MySQL Server     |
+| 10.211.55.11 | hadoop3 | MetaStore Server |
+| 10.211.55.12 | hadoop4 | MetaStore Client |
+
+2. 在hadoop3和hadoop4上安装hive
+```shell
+#! 解压hive到指定目录
+tar zxvf apache-hive-1.2.1-bin.tar.gz -C /usr/local
+
+#! 修改配置文件
+vi /etc/profile
+
+#! 在profile文件中添加如下内容
+export HIVE_HOME=/usr/local/apache-hive-1.2.1-bin
+export PATH=$PATH:$HIVE_HOME/bin
+```
+
+3. 配置hadoop3（MetaStore Server）
+* 进入$HIVE_HOME下的conf目录，修改hive-site.xml
+```xml
+<configuration>
+    <property>
+        <name>hive.metastore.warehouse.dir</name>
+        <value>/user/hive/warehouse</value>
+    </property>
+    <property>
+        <name>javax.jdo.option.ConnectionURL</name>
+        <value>jdbc:mysql://hadoop1:3306/hive?createDatabaseIfNotExist=true</value>
+    </property>
+    <property>
+        <name>javax.jdo.option.ConnectionDriverName</name>
+        <value>com.mysql.jdbc.Driver</value>
+    </property>
+    <property>
+        <name>javax.jdo.option.ConnectionUserName</name>
+        <value>root</value>
+    </property>
+    <property>
+        <name>javax.jdo.option.ConnectionPassword</name>
+        <value>MyNewPass4!</value>
+    </property>
+</configuration>
+```
+* 拷贝mysql连接驱动到HIVE_HOME/lib目录下
+`cp /root/mysql-connector-java-5.1.32-bin.jar $HIVE_HOME/lib`
+
+4. 配置hadoop4（MetaStore Client）
+* 进入$HIVE_HOME下的conf目录，修改hive-site.xml
+```xml
+<configuration>
+    <property>
+        <name>hive.metastore.warehouse.dir</name>
+        <value>/user/hive/warehouse</value>
+    </property>
+    <property>
+        <name>hive.metastore.local</name>
+        <value>false</value>
+    </property>
+    <property>
+        <name>hive.metastore.uris</name>
+        <value>thrift://hadoop3:9083</value>
+    </property>
+</configuration>
+```
+
+* 删除`$HADOOP_PREFIX/share/hadoop/yarn/lib`目录下的jline jar包，将`$HIVE_HOME/lib`下的jline jar包复制过去
+```shell
+cd /usr/local/hadoop-2.6.5/share/hadoop/yarn/lib
+rm jline*.jar
+cp /usr/local/apache-hive-1.2.1-bin/lib/jline-2.12.jar .
+```
