@@ -208,5 +208,26 @@ public boolean nextKeyValue() throws IOException {
 }
 ```
 
+* pos是在LineRecordReader的initialize方法中被初始化的
+```java
+public void initialize(InputSplit genericSplit,
+                       TaskAttemptContext context) throws IOException {
+    ...
+    start = split.getStart();
+    end = start + split.getLength();
+    final Path file = split.getPath();
+    ...
+
+    // If this is not the first split, we always throw away first record
+    // because we always (except the last split) read one extra line in
+    // next() method.
+    // 除了第一个split切片，其他的切片会舍弃第一行，读取下一个split的第一行
+    if (start != 0) {
+        start += in.readLine(new Text(), 0, maxBytesToConsume(start));
+    }
+    this.pos = start;
+}
+```
+
 * LineRecordReader的nextKeyValue每调用一次，便会执行一次自定义Mapper中的map方法，map方法中通过context.write(k, v)输出结果，context.write会调用MapOutputBuffer的collect方法（只要reduce个数不为0），`collector.collect(key, value, partitioner.getPartition(key, value, partitions))`。
 关于shuffle阶段执行的流程可以看下一篇[博客](https://s-a-scott.github.io/2017/05/22/MapReduceShuffle/)
