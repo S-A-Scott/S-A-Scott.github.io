@@ -10,23 +10,53 @@ tags:
     - Hadoop
 ---
 
-### 一. Flume介绍
-#### 概述
+### 一. Flume安装
 
-* Flume是一个分布式、可靠、和高可用的海量日志采集、聚合和传输的系统
-* Flume可以采集文件，socket数据包等各种形式源数据，又可以将采集到的数据输出到HDFS、hbase、hive、kafka等众多外部存储系统中
+1. Flume的安装非常简单，只需要解压即可，当然，前提是已有hadoop环境
+    * 上传安装包到数据源所在节点上
+    * 解压`tar -zxvf apache-flume-1.6.0-bin.tar.gz -C /usr/local`
+    * 修改conf下的`flume-en.sh`，在里面配置JAVA_HOME
 
-#### 运行机制
-1. Flume分布式系统中最核心的角色是agent，flume采集系统就是由一个个agent所连接起来形成
-2. 每一个agent相当于一个数据传递员（Source 到 Channel 到 Sink之间传递数据的形式是Event事件；Event事件是一个数据流单元。），内部有三个组件
-    * Source：采集源，用于跟数据源对接，以获取数据
-    * Sink：下沉地，采集数据的传送目的，用于往下一级agent传递数据或者往最终存储系统传递数据
-    * Channel：angent内部的数据传输通道，用于从source将数据传递到sink
-![flume.png](/img/in-post/post-js-version/flume.png)
-### 二. Flume采集系统结构图
+### 二. 配置
 
-#### 单个agent采集数据
-![flume.png](/img/in-post/post-js-version/flume.png)
+1. 根据数据采集的需求配置采集方案，描述在配置文件中(文件名可任意自定义)
+2. 指定采集方案配置文件，在相应的节点上启动flume agent
+3. 采集本机日志到HDFS中的配置, `vi flumeproject`
+```shell
+# Name the components on this agent
+a1.sources = r1
+a1.sinks = k1
+a1.channels = c1
 
-#### 多个agent之间串联
-![flumecascade.png](/img/in-post/post-js-version/flumecascade.png)
+# Describe/configure the source
+a1.sources.r1.type = exec
+a1.sources.r1.command = tail -F /home/flume.exec.log
+
+# Describe the sink
+a1.sinks.k1.type=hdfs
+a1.sinks.k1.hdfs.path=hdfs://mycluster/log/%Y%m%d
+a1.sinks.k1.hdfs.rollCount=0
+a1.sinks.k1.hdfs.rollInterval=0
+a1.sinks.k1.hdfs.rollSize=10240
+a1.sinks.k1.hdfs.idleTimeout=5
+a1.sinks.k1.hdfs.fileType=DataStream
+a1.sinks.k1.hdfs.useLocalTimeStamp=true
+
+# Use a channel which buffers events in memory
+a1.channels.c1.type = memory
+# 通道中最大的可以存储的event数量
+a1.channels.c1.capacity = 1000
+# 每次最大可以从source中拿到或者送到sink中的event数量
+a1.channels.c1.transactionCapacity = 100
+
+# Bind the source and sink to the channel
+a1.sources.r1.channels = c1
+a1.sinks.k1.channel = c1
+```
+4. 启动
+```shell
+flume-ng agent -n a1 -f flumeproject -Dflume.root.logger=INFO,console
+
+-n a1 指定我们这个agent的名字
+-f flumeproject指定所描述的采集方案
+```
