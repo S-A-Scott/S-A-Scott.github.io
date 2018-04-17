@@ -47,9 +47,9 @@ RDD和它依赖的父RDD的关系有两种不同的类型，即shuffle依赖（s
 #### 窄依赖
 如果RDD与上游RDD分区是一对一的关系，那么RDD和其上游RDD之间的依赖关系属于窄依赖（NarrowDependency）。NarrowDependency一共有两个子类，分别为
 * OneToOneDependency
-<img class="shadow" width="348" height="355" src="/img/in-post/post-js-version/onetooneDep.png" />
+<img  width="348" height="355" src="/img/in-post/post-js-version/onetooneDep.png" />
 * RangeDependency
-<img class="shadow" width="348" height="631" src="/img/in-post/post-js-version/rangeDep.png" />
+<img  width="348" height="631" src="/img/in-post/post-js-version/rangeDep.png" />
 
 
 #### shuffle依赖
