@@ -1,0 +1,84 @@
+---
+layout:     post
+title:      "Hive优化"
+subtitle:   "Optimization"
+date:       2017-02-12 12:00:00
+author:     "Spencer"
+header-img: "img/post-bg-2015.jpg"
+tags:
+    - Hive
+    - Hadoop
+---
+
+#### 核心思想
+* 把Hive SQL当做Mapreduce程序去优化
+* 以下HQL不会转化为Mapreduce来执行
+    * select仅查询本表字段
+    * where仅对本表字段做条件过滤
+* Explain显示执行计划
+`EXPLAIN [extended] query`
+
+#### Hive运行模式
+
+* 本地模式
+`set hive.exec.mode.local.auto=true`
+注意`hive.exec.local.auto.inputbytes.max`默认值为128M，表示加载文件的最大值，若大于该配置任会以集群方式运行
+* 集群模式
+
+
+#### 并行计算
+
+* 通过设置以下参数开启并行模式
+`set hive.exec.parallel=true;`
+
+#### 严格模式
+
+* 通过设置以下参数开启严格模式
+`set hive.mapred.mode=strict`
+
+* 查询限制：
+    * 对于分区表，必须添加where字段对于分区字段的条件过滤
+    * order by语句必须包含limit输出限制
+    * 限制笛卡尔积的查询
+
+
+#### Hive Join
+
+* Hive计算时，将小表放在join左边
+* Map Join：在Map端完成Join
+* 两种实现方式：
+    * SQL语句
+    * 开启自动MapJoin
+* SQL 语句
+`SELECT /*+ MAPJOIN(smallTable)*/ smallTable.key, bigTable.value FROM smallTable JOIN bigTalble ON smallTable.key = bigTable.key`
+* 开启自动的MapJoin
+    * 通过修改`set hive.auto.convert.join=true;`开启
+
+* 相关参数
+    * `hive.mapjoin.smalltable.filesize`判断是否为小表的阈值
+    * `hive.ignore.mapjoin.hint`是否忽略mapjoin标记
+
+#### Map-Side 聚合
+
+* 通过设置以下参数开启在Map端的聚合：
+set hive.map.aggr=true;
+
+* 相关配置参数：
+hive.groupby.mapaggr.checkinterval：
+map端group by执行聚合时处理的多少行数据（默认：100000）
+hive.map.aggr.hash.min.reduction：
+进行聚合的最小比例（预先对100000条数据做聚合，若聚合之后的数据量/100000的值大于>该配置0.5，则不会聚合）
+hive.map.aggr.hash.percentmemory：
+map端聚合使用的内存的最大值
+hive.map.aggr.hash.force.flush.memory.threshold：
+map端做聚合操作是hash表的最大可用内容，大于该值则会触发flush
+`hive.groupby.skewindata`
+**是否对GroupBy产生的数据倾斜做优化，默认为false**
+
+#### JVM重用
+* 使用场景
+小文件个数多
+task个数多
+
+* 缺点
+设置开启后，task插槽会一直占用资源，不论是否有task运行，直到所有task即整个job全部执行完毕，才会释放所有的task插槽资源
