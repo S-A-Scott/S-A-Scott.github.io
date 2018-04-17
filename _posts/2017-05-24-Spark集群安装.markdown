@@ -1,0 +1,113 @@
+---
+layout:     post
+title:      "Spark集群安装及任务提交"
+subtitle:   "Spark Installtion"
+date:       2017-05-22 12:00:00
+author:     "Spencer"
+header-img: "img/post-bg-2015.jpg"
+tags:
+    - Spark
+---
+
+### 一. 安装Spark集群
+
+| IP地址       | 主机名  | 角色   |
+| ------------ | ------- | ------ |
+| 10.211.55.7  | hadoop1 | Master |
+| 10.211.55.9  | hadoop2 | Worker |
+| 10.211.55.11 | hadoop3 | Worker |
+| 10.211.55.12 | hadoop4 | Worker |
+
+* 先在Hadoop1上安装Spark
+```shell
+unzip spark-1.6.3-bin-hadoop2.6.zip  -d /usr/local
+cd /usr/local/spark-1.6.3-bin-hadoop2.6
+```
+
+* 修改配置文件
+```shell
+cd conf
+mv spark-env.sh.template spark-env.sh
+vi spark-env.sh
+# 添加如下配置
+export SPARK_MASTER_IP=hadoop1
+export SPARK_MASTER_PORT=7077
+export SPARK_WORKER_CORES=2
+export SPARK_WORKER_MEMORY=1000m
+```
+
+* 在Hadoop1上指定slaves
+```shell
+cd /usr/local/spark-1.6.3-bin-hadoop2.6/conf
+mv slaves.template slaves
+vi slaves
+# 添加如下配置
+hadoop2
+hadoop3
+hadoop4
+```
+* 复制spark到其他节点
+```shell
+cd /usr/local
+scp -r  spark-1.6.3-bin-hadoop2.6/ root@hadoop2:`pwd`
+scp -r  spark-1.6.3-bin-hadoop2.6/ root@hadoop3:`pwd`
+scp -r  spark-1.6.3-bin-hadoop2.6/ root@hadoop4:`pwd`
+```
+
+* spark配置完毕，在hadoop1上启动集群
+```shell
+cd /usr/local/spark-1.6.3-bin-hadoop2.6/sbin
+./start-all.sh
+```
+
+### 二. 配置HA模式（新启一台节点hadoop5)
+
+* 统一修改spark-env.sh配置文件
+```shell
+export SPARK_MASTER_IP=hadoop1
+export SPARK_MASTER_PORT=7077
+export SPARK_WORKER_CORES=2
+export SPARK_WORKER_MEMORY=1000m
+export SPARK_DAEMON_JAVA_OPTS="-Dspark.deploy.recoveryMode=ZOOKEEPER -Dspark.deploy.zookeeper.url=hadoop2:2181,hadoop3:2181,hadoop4:2181 -Dspark.deploy.zookeeper.dir=/spark"
+```
+
+* 单独修改hadoop5的conf/spark-env.sh文件
+```shell
+export SPARK_MASTER_IP=hadoop5
+export SPARK_MASTER_PORT=7077
+export SPARK_WORKER_CORES=2
+export SPARK_WORKER_MEMORY=1000m
+export SPARK_DAEMON_JAVA_OPTS="-Dspark.deploy.recoveryMode=ZOOKEEPER -Dspark.deploy.zookeeper.url=hadoop2:2181,hadoop3:2181,hadoop4:2181 -Dspark.deploy.zookeeper.dir=/spark"
+```
+
+* 先启动zookeeper
+
+* hadoop1上启动集群
+```shell
+sbin/start-all.sh
+```
+
+* 在hadoop5上启动第二个Master
+```shell
+sbin/start-master.sh
+```
+
+### 三. 提交任务
+```shell
+/usr/local/spark-1.6.3-bin-hadoop2.6/bin/spark-submit \
+--class org.apache.spark.examples.SparkPi \
+--master spark://hadoop1:7077 \
+--executor-memory 800m \
+--total-executor-cores 2 \
+/usr/local/spark-1.6.3-bin-hadoop2.6/lib/spark-examples-1.6.3-hadoop2.6.0.jar \
+100
+```
+```shell
+/usr/local/spark-1.6.3-bin-hadoop2.6/bin/spark-submit \
+--class cn.itcast.spark.wordcount \
+--master spark://hadoop1:7077 \
+--executor-memory 512m \
+--total-executor-cores 3 \
+/home/bigdata/hello-spark-1.0.jar \
+100
+```
