@@ -1,0 +1,79 @@
+---
+layout:     post
+title:      "Spark（二）四种任务提交方式"
+subtitle:   "Submit Application"
+date:       2017-05-25 18:00:00
+author:     "Spencer"
+header-img: "img/post-bg-2015.jpg"
+tags:
+    - Spark
+	- SparkCore
+---
+
+### 一. Standalone-client模式
+* 提交命令
+```shell
+./spark-submit --master spark://hadoop1:7077 --deploy-mode client --class ... jar ... 参数
+```
+![standalone_client.png](/img/in-post/post-js-version/standalone_client.png)
+#### 流程
+1. 首先Worker会向Master注册（注册时会汇报资源）并定时发送心跳
+2. Driver向Master申请资源（e.g. executor-memory，totoal-executor-cores）
+3. Driver发送task任务到Executor上（准确的说是发送给CoarseGrainedExecutorBackend Actor，CoarseGrainedExecutorBackend会启动Executor，每个CoarseGrainedExecutorBackend对应一个Executor）
+4. Executor执行task，并返回结果给Driver
+
+#### 存在的问题
+1. PC和集群不在同一个局域网时，Driver和Executor之间的通信会很慢
+2. 当客户端提交多个application时，多个Driver会造成客户端网卡流量激增
+
+### 二. Standalone-cluster模式
+* 提交命令
+```shell
+./spark-submit --master spark://hadoop1:7077 --deploy-mode cluster --class ... jar ... 参数
+```
+![standalone_cluster.png](/img/in-post/post-js-version/standalone_cluster.png)
+#### 流程
+1. 首先Worker会向Master注册并定时发送心跳
+2. 在客户端上提交application（./spark-submit ...）
+3. 客户端向Master申请启动Driver
+4. Master随机找一台Worker节点启动Driver
+5. Driver向Master申请资源（e.g. executor-memory，totoal-executor-cores）
+6. Driver发送task任务到Executor上（准确的说是发送给CoarseGrainedExecutorBackend Actor，CoarseGrainedExecutorBackend会启动Executor，每个CoarseGrainedExecutorBackend对应一个Executor）
+7. Executor执行task，并返回结果给Driver
+
+#### 存在的问题
+当集群中还需要运行Hive，MR等作业时，standalone模式不能统一资源的分配管理
+
+### 三. Yarn-client模式
+* 提交命令
+```shell
+./spark-submit --master yarn --deploy-mode client --class ... jar ... 参数
+```
+客户端的Driver将应用提交给Yarn后，Yarn会先后启动ApplicationMaster和executor，另外ApplicationMaster和executor都 是装载在container里运行，container默认的内存是1G，ApplicationMaster分配的内存是driver- memory，executor分配的内存是executor-memory。同时，因为Driver在客户端，所以程序的运行结果可以在客户端显 示，Driver以进程名为SparkSubmit的形式存在。
+![yarn-client.png](quiver-image-url/CE033B43DA64A1CE62D261A89045D12B.png =733x607)
+![yarn-client.png](/img/in-post/post-js-version/yarn-client.png)
+#### 流程
+1. 客户端提交application，Driver会在客户端启动
+2. 客户端向ResourceManager申请启动ApplicationMaster
+3. ResourceManager收到请求之后，随机在一台NodeManager中启动ApplicationMaster
+4. ApplicationMaster启动之后，向ResourceManager申请资源，用于启动Executor
+5. ResourceManager收到请求之后，找到资源返回给ApplicationMaster
+6. ApplicationMaster连接NodeManager启动Executor
+7. Executor启动之后会反向注册给Driver
+8. Driver发送task到Executor执行
+
+### 四. Yarn-cluster模式
+* 提交命令
+```shell
+./spark-submit --master yarn --deploy-mode cluster --class ... jar ... 参数
+```
+Spark Driver首先作为一个ApplicationMaster在YARN集群中启动，客户端提交给ResourceManager的每一个job都会在集群的worker节点上分配一个唯一的ApplicationMaster，由该ApplicationMaster管理全生命周期的应用。因为Driver程序在YARN中运行，所以事先不用启动Spark Master/Client，应用的运行结果不能在客户端显示（可以在history server中查看），所以最好将结果保存在HDFS而非stdout输出，客户端的终端显示的是作为YARN的job的简单运行状况
+![yarn-cluster.png](/img/in-post/post-js-version/yarn-cluster.png)
+#### 流程
+1. 客户端提交Application,首先客户端向ResourceManager申请启动ApplicationMaster
+2. ResourceManager收到请求之后，随机在一台NodeManager中启动ApplicationMaster,这里ApplicationMaster就相当于是Driver
+3. ApplicationMaster启动之后，向ResourceManager申请资源，用于启动Executor
+4. ResourceManager收到请求之后，找到资源返回给ApplicationMaster
+5. ApplicationMaster连接NodeManager启动Executor
+6. Executor启动之后会反向注册给ApplicationMaster(Driver)
+7. Driver发送task到Executor执行
