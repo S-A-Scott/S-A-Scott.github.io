@@ -6,8 +6,7 @@ date:       2017-02-02 12:00:00
 author:     "Spencer"
 header-img: "img/post-bg-2015.jpg"
 tags:
-    - Hive
-    - Hadoop
+    - Flume
 ---
 
 ### 一. Flume介绍
